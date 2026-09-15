@@ -1,137 +1,87 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <time.h>
 
-#define epoca 3000000
-#define K 0.03f
+#define EPOCAS 10000
+#define K 0.1f
 
-//0.00000
-//Funcion de Entrenamiento Perceptron
-float EntNt(float, float, float  );
-//Funcion para las salidas 
-float InitNt(float, float);
-//Sigmoide
-float sigmoide(float);
-//pesos aleatorios
-void pesos_initNt();
+float entrenar(float x0, float x1, float target);
+float predecir(float x0, float x1);
+float sigmoide(float s);
+void inicializar_pesos(void);
 
-float Pesos[2];	
-float bias=0.5f;
+float Pesos[2];
+float bias = 0.0f;
 float Error;
- //                 1          1          1
- //                 0          1         0           
- //                 1          0         0
- //                0          0          0
-float EntNt( float x0, float x1, float target )
-{
-  
-//printf("x0=%f, x1=%f, t %f \n" ,x0, x1,  target );
-  
-  float net = 0;
-  float out = 0;
-  float delta[2];  //Es la variacion de los pesos sinapticos
-  //float Error;
-   
-  net = Pesos[0]*x0 + Pesos[1]*x1 - bias;
-  net = sigmoide( net );
-   
-  Error = target - net;
-  //printf("Error funcion %f \n", Error); 
-  bias -= K*Error;  //Como el bias es siempre 1, pongo que 
-                    //el bias incluye ya su peso sinaptico
-   
-  delta[0] = K*Error * x0;  //la variacion de los pesos sinapticos corresponde 
-  delta[1] = K*Error * x1;  //al error cometido, por la entrada correspondiente
+
+float entrenar(float x0, float x1, float target) {
+    float net = Pesos[0]*x0 + Pesos[1]*x1 + bias;
+    float out = sigmoide(net);
     
-   
-  Pesos[0] += delta[0];  //Se ajustan los nuevos valores
-  Pesos[1] += delta[1];  //de los pesos sinapticos
-
-   
-  out=net;
-  return out;
-}
- 
-
- 
-float InitNt( float x0, float x1 )
-{
-  float net = 0;
-  float out = 0;
-//Pesos de cada epoca
-//Peso 1 = 30.753101
-//Peso 2 = 30.780966
-//BiasBias = 61.583714
-//Resultados 
-//  net = 1.23*x0 + 2.4*x1+23;
-//Peso 1 = 989.755493
-//Peso 2 = -1407.284180
-//Bias = 989.755981 
-
-net = 70.934807*x0 + 93.935219*x1 - 187.886169 ;
-
-  //net = 316.518982*x0 + 316.522095*x1-633.045837;
-  net=sigmoide( net );
-   
-  out=net;
-  return out;
-}
-
- 
- 
-void pesos_initNt(void)
-{
-int i;
-  for(  i = 0; i < 2; i++ )
-  {
-    Pesos[i] = (float)rand()/RAND_MAX;
-  }
-}
- 
-float sigmoide( float s ){
-  return (1/(1+ (-1*s)));
-}
-
-int main(){
-  int i=0;
-  float apr;
-  pesos_initNt();
-  
- while(i<epoca){
+    Error = target - out;
     
-    printf("------------------------\n");
-    printf("Salida Entrenamiento Epoco %d \n", i);
-    apr=EntNt(1,1,0);
-    printf("1,1=%f\n",apr);
-    apr=EntNt(1,0,1);
-    printf("1,0=%f\n",apr);
-    apr=EntNt(0,1,1);
-    printf("0,1=%f\n",apr);
-    apr=EntNt(0,0,0);
-    printf("0,0=%f\n",apr);
-    printf("\n"); 
-    printf("Pesos de cada epoca\n");
-    printf("Peso 0 = %f\n", Pesos[0]);
-    printf("Peso 1 = %f\n", Pesos[1]);
-  
-    printf("Bias = %f \n",bias);
-	printf("Error %f\n ",Error  );
-	printf("------------------------\n"); 
-	i++;   
-/*
-
-    printf("Resultados\n");
-    apr=InitNt(1,1);
-    printf("1,1=%f\n",apr);
-    apr=InitNt(1,0);
-    printf("1,0=%f\n",apr);
-    apr=InitNt(0,1);
-    printf("0,1=%f\n",apr);
-    apr=InitNt(0,0);
-    printf("0,0=%f\n",apr);
-*/
-
+    float delta = K * Error * out * (1 - out);
+    
+    Pesos[0] += delta * x0;
+    Pesos[1] += delta * x1;
+    bias += delta;
+    
+    return out;
 }
 
-  return 0;
+float predecir(float x0, float x1) {
+    float net = Pesos[0]*x0 + Pesos[1]*x1 + bias;
+    return sigmoide(net);
+}
+
+float sigmoide(float s) {
+    return 1.0f / (1.0f + expf(-s));
+}
+
+void inicializar_pesos(void) {
+    float limit = sqrtf(6.0f / 2.0f);
+    for (int i = 0; i < 2; i++) {
+        Pesos[i] = ((float)rand() / RAND_MAX) * 2 * limit - limit;
+    }
+    bias = ((float)rand() / RAND_MAX) * 2 * limit - limit;
+}
+
+int main(void) {
+    srand((unsigned)time(NULL));
+    inicializar_pesos();
+    
+    printf("Entrenando PERCEPTRÓN para problema AND\n");
+    printf("========================================\n\n");
+    
+    // Training loop
+    for (int epoca = 0; epoca < EPOCAS; epoca++) {
+        float error_total = 0.0f;
+        
+        error_total += fabsf(entrenar(0, 0, 0));
+        error_total += fabsf(entrenar(0, 1, 0));
+        error_total += fabsf(entrenar(1, 0, 0));
+        error_total += fabsf(entrenar(1, 1, 1));
+        
+        if (epoca % 1000 == 0) {
+            printf("Época %5d | Error total: %.6f | Pesos: [%.4f, %.4f] | Bias: %.4f\n",
+                   epoca, error_total, Pesos[0], Pesos[1], bias);
+        }
+        
+        if (error_total < 0.001f) {
+            printf("\nConvergió en época %d\n", epoca);
+            break;
+        }
+    }
+    
+    printf("\n--- RESULTADOS FINALES ---\n");
+    printf("Pesos finales: w0=%.6f, w1=%.6f, bias=%.6f\n\n", Pesos[0], Pesos[1], bias);
+    
+    printf("Pruebas:\n");
+    printf("(0,0) -> %.4f (esperado: 0.0)\n", predecir(0, 0));
+    printf("(0,1) -> %.4f (esperado: 0.0)\n", predecir(0, 1));
+    printf("(1,0) -> %.4f (esperado: 0.0)\n", predecir(1, 0));
+    printf("(1,1) -> %.4f (esperado: 1.0)\n", predecir(1, 1));
+    
+    return 0;
 }
