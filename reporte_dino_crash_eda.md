@@ -1,6 +1,6 @@
 # Reporte EDA — Operación Dino Crash
 
-**Analista:** [Nombre / Matrícula]
+**Analista:** [Néstor Ricardo López Gutiérrez / 22121368]
 
 ---
 
@@ -337,6 +337,6 @@ SINO will_die_next_frame = 0
 
 ---
 
-## Síntesis (5 líneas)
+## Síntesis
 
 El dataset prioritario es un **dataset por-frame (16 ms) con 50,000+ filas de 200+ partidas**, con features físicas (`dist_obstacle`, `speed`, `dino_height`, `jump`, `crouch`) y variable objetivo `will_die_next_frame` desplazada 1 frame. El EDA revela un desbalance extremo (0.4% positivos), leakage temporal por sesión, y `dist_obstacle` como predictor dominante. **Solo después** de este análisis, se propone un **Random Forest con class_weight='balanced' y división por sesión**, no una red neuronal. El orden correcto es: entender → dividir → predecir.

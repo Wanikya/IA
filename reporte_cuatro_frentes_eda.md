@@ -1,6 +1,6 @@
 # Reporte EDA — Operación Cuatro Frentes
 
-**Analista:** [Nombre / Matrícula]
+**Analista:** [Néstor Ricardo López Gutiérrez / 22121368]
 
 ---
 
@@ -321,7 +321,7 @@ El "86% de aciertos" del dummy es **engañosamente alto**. Con 14% de positivos,
 
 ---
 
-## Síntesis (máx. 8 líneas)
+## Síntesis
 
 ### Tabla resumen de las 4 propuestas
 
