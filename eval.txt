@@ -1,0 +1,404 @@
+           ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+             10 PREGUNTAS REDES NEURONALES CONVOLUCIONALES
+                                 (CNN)
+
+                            Eduardo Alcaraz
+           ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+Índice
+──────
+
+1. Instrucciones (alumnos)
+2. Pregunta 1 — Convolución a mano (3×3)
+3. Pregunta 2 — Contar pesos
+4. Pregunta 3 — ¿Qué cambia si meto más capas?
+5. Pregunta 4 — Formas: de volumen a vector
+6. Pregunta 5 — Softmax y el error “casi seguro”
+7. Pregunta 6 — Padding, stride y “se me achicó la imagen”
+8. Pregunta 7 — Dropout: ¿dónde y para qué?
+9. Pregunta 8 — Diseño: 5 clases de animales
+10. Pregunta 9 — CNN vs MLP vs RNN (mismo problema, mala herramienta)
+11. Pregunta 10 — Experimento mental: mover un gato
+12. Autoevaluación rápida (opcional)
+13. Notas al pie (fórmulas útiles — no sustituyen el razonamiento)
+
+
+1 Instrucciones (alumnos)
+═════════════════════════
+
+  • Responde *con lápiz y papel* (o en este mismo buffer de Org).
+  • No basta con definir de memoria: hay que *calcular*, *comparar* o
+    *justificar*.
+
+
+2 Pregunta 1 — Convolución a mano (3×3)
+═══════════════════════════════════════
+
+  Tienes este trozo de imagen en escala de grises (un canal) y este
+  kernel:
+
+  ┌────
+  │   Imagen 5×5                 Kernel 3×3
+  │   0  0  1  0  0              1  0 -1
+  │   0  1  2  1  0              1  0 -1
+  │   1  2  3  2  1              1  0 -1
+  │   0  1  2  1  0
+  │   0  0  1  0  0
+  └────
+
+
+2.0.1 Tareas
+╌╌╌╌╌╌╌╌╌╌╌╌
+
+  1. Con *stride = 1* y *padding valid* (sin relleno), ¿cuál es el
+     tamaño del mapa de salida?
+     Padding valid: [(N-K)/S]+1
+     N = 5, K = 3, S = 1
+     [(5-3)/1]+1 = 2.6666 ~ 3
+     El tamaño del mapa de salida es de 3x3
+
+  2. Calcula *solo* el valor de la esquina superior izquierda del mapa
+     (la primera posición del filtro). Muestra la suma de productos.
+     Fila 1 = (0*1) + (0*0) + (1*-1) = -1
+     Fila 2 = (0*1) + (1*0) + (2*-1) = -2
+     Fila 3 = (1*1) + (2*0) + (3*-1) = -2
+     Suma = -1-2-2 = -5
+     Valor de la esquina superior izquierda del mapa = -5
+
+  3. ¿Este kernel parece detectar bordes *verticales* u *horizontales*?
+     Justifica mirando los signos.
+     Este kernel detecta bordes verticales. Al tener una columna positiva
+     a la izquierda, ceros al centro y negativos a la derecha, calcula la
+     diferencia de intensidad horizontal entre los píxeles vecinos.
+
+
+3 Pregunta 2 — Contar pesos
+═══════════════════════════
+
+  Una imagen RGB de *28×28×3*. Compara dos modelos:
+
+  • *Modelo A (MLP ingenuo):* aplastas la imagen a un vector y conectas
+    *todas* las entradas a una capa densa de *64 neuronas* (sin bias por
+    ahora).
+  • *Modelo B (CNN):* una `Conv2D' con *16 filtros* de *3×3*,
+    `padding''same'=, sobre la misma imagen (con bias: un bias por
+    filtro).
+
+
+3.0.1 Tareas
+╌╌╌╌╌╌╌╌╌╌╌╌
+
+  1. ¿Cuántos pesos tiene la capa densa del Modelo A? (fórmula y número)
+     Entradas por imagen = 28*28*3 = 2352
+     Fórmula sin bias = nin*nout = 2352 * 64 = 150,528 pesos.
+
+  2. ¿Cuántos parámetros tiene la Conv2D del Modelo B? (pesos de kernels
+     + biases)
+     Fórmula de Conv2D = Kh*Kw*Cin*Cout+Cout = (3*3*3*16)+16 = 448 parámetros
+
+  3. En *una frase*: ¿por qué la CNN suele generalizar mejor con el
+     mismo número de imágenes de entrenamiento?
+     La CNN usa los mismos pesos (filtros) a lo largo de toda la imagen,
+     reduciendo drásticamente el número de parámetros a optimizar y mitigando
+     el sobreajuste que sufriría una red densa al intentar memorizar conexiones globales.
+
+4 Pregunta 3 — ¿Qué cambia si meto más capas?
+═════════════════════════════════════════════
+
+  Parte del notebook `CNNriesgo' (simplificado):
+
+  ┌────
+  │   Entrada (21×28×3)
+  │     → Conv2D(32, 3×3, same) + LeakyReLU
+  │     → MaxPool(2×2)
+  │     → Flatten → Dense(32) → Dense(nClasses, softmax)
+  └────
+
+  Quieres *apilar un segundo bloque* convolucional *antes* del Flatten:
+
+  ┌────
+  │   … → Conv2D(32) → Pool → Conv2D(64, 3×3, same) → Pool → Flatten → …
+  └────
+
+
+4.0.1 Tareas
+╌╌╌╌╌╌╌╌╌╌╌╌
+
+  1. Tras el *primer* MaxPool(2×2) con padding same sobre 21×28, ¿qué
+     tamaño aproximado (alto×ancho) esperas? (puedes redondear / usar la
+     regla “casi la mitad”)
+     El MaxPool al ser de 2x2 divide a la mitad a la imagen, dejando valores
+     de 10.5x14 ~ 10x14, por lo que esperas una matriz de 10x14
+
+  2. ¿Qué *significan* ahora los 64 filtros de la segunda Conv2D:
+     detectan bordes “crudos” o patrones *más compuestos*? Explica con
+     la analogía de la lupa / capas abstractas.
+     En las arquitecturas convolucionales multicapa, el filtro del segundo
+     o posterior kernel sirve para detallar los bordes o patrones definidos
+     por capas anteriores, asignando valores a todos esos bordes que está
+     analizando según su nivel de semejanza a lo que está buscando.
+
+  3. Riesgo: si añades *muchas* capas Conv+Pool con pocas imágenes, ¿qué
+     falla típico verías en las curvas train vs validation? ¿Qué harías
+     primero para mitigarlo (Dropout, más datos, menos filtros…)? Elige
+     *una* medida y justifica.
+     Se generaría un sobreajuste severo, dado que los valores de entrenamiento
+     caerían mientras que los de validación se dispararían.
+     Para solucionarlo se puede añadir un Dropout, puesto que es un medio
+     por el cual una cantidad aleatoria de neuronas se apagan en cada
+     iteración, obligando a todas las neuronas restantes a aprender
+     características únicas y útiles, evitando el sobreajuste por validación.
+
+
+5 Pregunta 4 — Formas: de volumen a vector
+══════════════════════════════════════════
+
+  Supón que, justo antes del Flatten, el tensor tiene forma `(7, 7, 64)'
+  (lote omitido: una sola imagen).
+
+
+5.0.1 Tareas
+╌╌╌╌╌╌╌╌╌╌╌╌
+
+  1. ¿Cuántos números salen del Flatten? (un solo entero)
+     El Flatten multiplica las dimensiones del volúmen (7*7*64), dando un
+     valor de 3136 volúmenes.
+
+  2. Si la siguiente Dense tiene *32 neuronas* (con bias), ¿cuántos
+     parámetros tiene *esa* Dense?
+     Los parámetros resultantes se calculan con nin*nout+nout
+     (3136*32)+32 = 100,384 parámetros
+
+  3. Si en vez de Flatten usas *Global Average Pooling* (un promedio por
+     canal), ¿qué forma tendrías a la salida y cuántos valores serían?
+     ¿Ventaja frente a Flatten cuando la imagen de entrada es más
+     grande?
+     El Global Average Pooling promediará cada uno de los 64 mapas de
+     características 7×7 a un único valor escalar, resultando en un vector
+     de salida de 64 valores. Su principal ventaja es que hace a la red
+     invariable a resoluciones de imagen más grandes y elimina por completo
+     la explosión masiva de parámetros que causaría el Flatten, reduciendo
+     el riesgo de sobreajuste.
+
+
+6 Pregunta 5 — Softmax y el error “casi seguro”
+═══════════════════════════════════════════════
+
+  Una CNN de 3 clases (inundación, incendio, tornado) saca logits que,
+  tras softmax, dan:
+
+  ┌────
+  │   P = [0.10, 0.05, 0.85]
+  └────
+
+  La etiqueta verdadera (one-hot) es `[0, 1, 0]' (incendio).
+
+
+6.0.1 Tareas
+╌╌╌╌╌╌╌╌╌╌╌╌
+
+  1. ¿Qué clase predice el modelo (`argmax')?
+     El modelo se basa en el índice más alto para prdecir, siendo este
+     valor 0.85, por lo que predice un tornado.
+
+  2. ¿Está “seguro” o “confundido”? Usa los números, no adjetivos
+     vacíos.
+     El modelo está muy confundido pero seguro de su error. Asignó un
+     85% de probabilidad a una clase incorrecta y apenas un 5% a la
+     clase verdadera (incendio).
+
+  3. Sin calcular la fórmula exacta: argumenta si la *categorical
+     crossentropy* de este ejemplo será *alta* o *baja*, y por qué
+     (pista: castiga cuando la probabilidad de la clase correcta es
+     pequeña).
+     La categorical crossentropy será muy alta. Esta función de pérdida
+     toma el logaritmo negativo de la probabilidad predicha únicamente
+     para la clase correcta. Al ser esta probabilidad tan pequeña (0.05),
+     el castigo matemático crece exponencialmente para penalizar al modelo
+     por estar tan confiado en la dirección equivocada.
+
+
+7 Pregunta 6 — Padding, stride y “se me achicó la imagen”
+═════════════════════════════════════════════════════════
+
+  Entrada *32×32*, kernel *5×5*, *un* filtro, un canal.
+
+
+7.0.1 Tareas
+╌╌╌╌╌╌╌╌╌╌╌╌
+
+  Completa la tabla (escribe el alto×ancho de salida):
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   padding  stride  salida (alto×ancho) 
+  ──────────────────────────────────────
+   valid         1     28        28x28
+   valid         2     14        14x14         
+   same          1     32        32x32         
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Luego: si encadenas *tres* MaxPool(2×2) seguidos sobre una imagen
+  32×32 (sin cuidar bordes), ¿qué problema práctico aparece para
+  clasificar objetos *pequeños* o detalles finos?
+  Al encadenar tres MaxPool(2x2) sobre una imagen de 32×32, las
+  dimensiones se dividen por 2^3 (ocho), reduciendo el mapa a
+  apenas 4×4 píxeles. El problema práctico es que se destruye la
+  resolución espacial; los objetos pequeños o los detalles finos se
+  pierden por completo al agruparse promedios o máximos en áreas
+  demasiado grandes, imposibilitando su clasificación.
+
+
+8 Pregunta 7 — Dropout: ¿dónde y para qué?
+══════════════════════════════════════════
+
+  En `CNNriesgo' hay `Dropout(0.5)' después del pooling y otra vez antes
+  de la salida.
+
+
+8.0.1 Tareas
+╌╌╌╌╌╌╌╌╌╌╌╌
+
+  1. Durante *entrenamiento*, ¿qué hace Dropout(0.5) en una capa densa
+     de 32 neuronas (en promedio cuántas “sobreviven” por paso)?
+     Durante el entrenamiento, Dropout(0.5) apaga aleatoriamente la mitad
+     de las activaciones. En promedio sobreviven 16 neuronas en cada iteración.
+
+  2. Durante *inferencia* (`predict'), ¿se apagan neuronas al azar? ¿Por
+     qué sí o no?
+     Durante la inferencia, no se apagan neuronas al azar. Se utiliza la red
+     completa para que las predicciones sean deterministas, pero los pesos
+     internos se escalan para compensar que ahora todas las neuronas están
+     activas sumando señales.
+
+  3. Un compañero pone Dropout *solo* en la última época “para que no se
+     sobreajuste al final”. ¿Tiene sentido? Critica la idea en 3–5
+     líneas.
+     Colocar el Dropout al final no tiene sentido puesto que es una técnica
+     de regularización estructural que requiere cientos o miles de iteraciones
+     de descenso de gradiente para obligar a la red a distribuir el aprendizaje
+     y no depender de un solo grupo de características, añadiendo ruido al
+     resultando final.
+
+
+9 Pregunta 8 — Diseño: 5 clases de animales
+═══════════════════════════════════════════
+
+  Debes adaptar `CNNriesgo' a: ranas, arañas, monos, ballenas, pájaros.
+
+
+9.0.1 Tareas
+╌╌╌╌╌╌╌╌╌╌╌╌
+
+  1. ¿Cuántas neuronas debe tener la *última* Dense y qué activación?
+     ¿Por qué?
+     La capa densa final debe tener 5 neuronas con activación softmax.
+     Cada neurona representará la probabilidad de una de las 5 clases
+     mutuamente excluyentes, forzando a que la suma de las salidas sea 1.
+  2. Si todas las fotos entran a *224×224×3* pero el modelo tiene
+     `input_shape=(21,28,3)', ¿qué *debe* pasar antes del `fit'? (una
+     frase operativa)
+     Se debe de redimensionar las fotos para que coincidan con el tamaño
+     de entrada designado.
+
+  3. Propón *una* mejora de arquitectura (segundo Conv, BatchNorm, data
+     augmentation…)  y di *qué síntoma* en train/val te haría pensar que
+     esa mejora era necesaria.
+     Se podría implementar Data Augmentation. Necesaria si se observa que
+     la curva de precisión en validación se estanca o decae rápidamente,
+     mientras que la curva de entrenamiento sigue subiendo hacia el 100%.
+
+
+10 Pregunta 9 — CNN vs MLP vs RNN (mismo problema, mala herramienta)
+════════════════════════════════════════════════════════════════════
+
+  Tres escenarios. Elige *CNN*, *MLP* o *RNN/Transformer* y justifica en
+  *una* frase cada uno:
+
+  1. Predecir si un alumno aprueba con promedio, faltas y horas de
+     estudio (tabla).
+     MLP, porque maneja directamente vectores de características
+     tabulares independientes sin dimensiones espaciales o secuenciales.
+
+  2. Clasificar fotos de semáforo (rojo / amarillo / verde).
+     CNN, porque extrae jerarquías locales de píxeles y preserva la
+     invarianza espacial geométrica.
+
+  3. Autocompletar la siguiente línea de código dado el prefijo escrito.
+     RNN/Transformer, porque el código es intrínsecamente secuencial y
+     requiere mantener una "memoria" del contexto previo para predecir
+     el siguiente token.
+
+  Si aplastas la foto del semáforo y usas un MLP “grande”, ¿puede
+  *aprender*? ¿Qué sacrificas respecto a una CNN? (parámetros, datos,
+  invariancia…)
+  Si se usa un MLP grande para clasificar el semáforo, el modelo lo puede
+  aprender, pero sacrifica parámetros e invariancia a la traslación.
+  Un MLP no entenderá que un semáforo movido tres píxeles a la derecha
+  es el mismo objeto; lo tratará como un patrón de entrada de vector
+  completamente nuevo, forzándote a tener una cantidad inmensa de datos
+  y pesos redundantes.
+
+
+11 Pregunta 10 — Experimento mental: mover un gato
+══════════════════════════════════════════════════
+
+  Entrenaste una CNN que detecta “hay un gato” en fotos 64×64. En el
+  test, el mismo gato aparece *corrido 10 píxeles a la derecha*, mismo
+  fondo, misma escala.
+
+
+11.0.1 Tareas
+╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+  1. ¿Por qué una CNN tiene *más chance* de seguir acertando que un MLP
+     que ve el vector aplastado? (pesos compartidos / detección local)
+     Una CNN acierta gracias a la característica de pesos compartidos 
+     ; al deslizar el mismo kernel por toda la imagen, detecta el patrón
+     local (el gato) independientemente de en qué coordenadas espaciales
+     aterrice el objeto. Un MLP, al conectar cada píxel a pesos fijos,
+     se rompería al cambiar la posición.
+
+  2. Si en vez de correrlo lo *giraras 90°* y nunca viste gatos de lado
+     en el train, ¿la CNN “mágica” garantiza acierto? ¿Qué haría falta
+     (augmentation, más datos…)?
+     No, la CNN no garantiza acierto frente a rotaciones de 90°. La
+     invarianza a la traslación no otorga invarianza rotacional mágica.
+     Haría falta incluir gatos girados en el set de entrenamiento o
+     aplicar una capa de Data Augmentation que rote las imágenes durante
+     el proceso de aprendizaje.
+
+  3. Escribe *una* pregunta que tú le harías a un compañero para
+     comprobar si entendió qué son los *pesos del kernel* (no copies las
+     de arriba).
+     "Si inicializamos todos los pesos de un kernel de una CNN en cero,
+     y la entrenamos con retropropagación durante 10 épocas, ¿qué
+     diferencia de patrones extraerán los distintos filtros de esa
+     capa convolucional al finalizar?"
+
+
+12 Autoevaluación rápida (opcional)
+═══════════════════════════════════
+
+  Marca 1–5 (1 = no entendí, 5 = lo explicaría en pizarrón):
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   Tema                                Nota 
+  ──────────────────────────────────────────
+   Producto punto del kernel               4 
+   Conteo de parámetros Conv vs Dense      3 
+   Efecto de apilar Conv+Pool              3 
+   Softmax + pérdida                       2 
+   Dropout train vs inferencia             3 
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+13 Notas al pie (fórmulas útiles — no sustituyen el razonamiento)
+═════════════════════════════════════════════════════════════════
+
+  • Salida convolución (un eje), padding valid: \(\lfloor (N - K)/S
+    \rfloor + 1\)
+  • Padding same + stride 1: salida ≈ mismo \(N\)
+  • Parámetros Conv2D: \(K_h \cdot K_w \cdot C_{in} \cdot C_{out} +
+    C_{out}\) (si hay bias)
+  • Parámetros Dense: \(n_{in} \cdot n_{out} + n_{out}\) (si hay bias)
